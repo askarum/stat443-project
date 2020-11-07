@@ -1,0 +1,56 @@
+dataf = data[,c("NO2", "year", "month", "day", "hour")]
+week = rep(c("Fri", "Sat", "Sun", "Mon", "Tues", "Wed", "Thur"), ceiling(1461/7))
+week = week[1:1461]
+dailyave = matrix(0, nrow = 1461, ncol = 4)
+for (i in 1:1461){
+    dailyave[i,1] = round(mean(dataf[(24*(i-1)+1):(24*i),1]), 2)
+    dailyave[i,2] = dataf[24*i, 2]
+    dailyave[i,3] = dataf[24*i, 3]
+    dailyave[i,4] = dataf[24*i, 4]
+    
+
+weekdayave = as.data.frame(dailyave)
+colnames(weekdayave) = c("NO2", "year", "month", "day")
+weekdayave$weekday = week
+weekdayave = as.data.frame(weekdayave)
+weekdayave %>%
+  group_by(weekday)%>%
+  summarise(mean_no2 = mean(NO2)) %>%
+  ggplot(aes(x = weekday, y = mean_no2)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  theme(axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5)) + 
+  geom_text(aes(label = round(mean_no2,1)), vjust = 1.6, color = "white", size = 3.5) +
+  labs(y = "Mean NO2 level") +
+  scale_x_discrete(limits = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun")) +
+  ggtitle("Weekly Average Concentration of NO2")
+  
+  
+hourly = dataf
+maxs = c()
+mins = c()
+for (i in 1:1461){
+  maxs = rbind(maxs, max(dataf[(24*(i-1)+1):(24*i),1]))
+  mins = rbind(mins, min(dataf[(24*(i-1)+1):(24*i),1]))
+}
+maxs = as.vector(maxs)
+mins = as.vector(mins)
+for (i in 1:dim(hourly)[1]){
+  hourly[i,1] = round((hourly[i,1] - mins[ceiling(i/24)])/(maxs[ceiling(i/24)] - mins[ceiling(i/24)]), 2)
+}
+
+hourly$hour = as.factor(hourly$hour)
+
+h = hourly %>% 
+  group_by(hour) %>%
+  summarise(mean_hr = mean(NO2, na.rm = T))
+
+ggplot(h, aes(x = as.numeric(h$hour), y = h$mean_hr)) +
+  geom_line() +
+  geom_point(x = as.numeric(h$hour, y = h$mean_hr)) +
+  scale_x_discrete(limits = 1:24, labels = c("12am", "1am", "2am", "3am", "4am", "5am", "6am", "7am", "8am", "9am", "10am", "11am", "12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm", "7pm", "8pm", "9pm", "10pm", "11pm")) +
+  theme(axis.text.x = element_text(angle = 65),
+        axis.title.x = element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Hourly Change in NO2") +
+  labs(y = "mean NO2")
